@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Наблюдение рабочей зоны</title>
+<style>
+  :root {
+    --bg: #12141a;
+    --panel: #1b1f28;
+    --line: #2b3140;
+    --text: #e8ebf2;
+    --muted: #9aa3b5;
+    --accent: #ff9f45;
+    --ok: #4ec98a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.5 "Segoe UI", system-ui, sans-serif;
+  }
+  header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  h1 { font-size: 17px; margin: 0; font-weight: 600; }
+  .sub { color: var(--muted); font-size: 13px; }
+  main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: 16px;
+    padding: 16px 20px;
+  }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+
+  .view {
+    /* Без этого сетка растягивает блок до высоты колонки с панелями,
+       и вокруг кадра появляются широкие чёрные поля. */
+    align-self: start;
+    background: #000;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    overflow: hidden;
+    display: flex;
+  }
+  .view img { width: 100%; display: block; }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px 16px;
+  }
+  .panel h2 {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: var(--muted);
+    margin: 0 0 10px;
+    font-weight: 600;
+  }
+  .panel + .panel { margin-top: 14px; }
+
+  label { display: block; margin-bottom: 12px; font-size: 13px; }
+  label .val { float: right; color: var(--accent); font-variant-numeric: tabular-nums; }
+  input[type=range] { width: 100%; margin-top: 5px; accent-color: var(--accent); }
+  .check { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; }
+  .check input { accent-color: var(--accent); }
+
+  button {
+    width: 100%;
+    padding: 8px;
+    background: #2a3242;
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  button:hover { background: #333d51; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  td { padding: 3px 0; }
+  td:last-child { text-align: right; color: var(--accent); font-variant-numeric: tabular-nums; }
+  td.name { color: var(--muted); }
+  .dot { color: var(--ok); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Система камер для наблюдения рабочей зоны</h1>
+  <span class="sub" id="headline">подключение…</span>
+</header>
+
+<main>
+  <div class="view"><img id="stream" alt="Панорама рабочей зоны"></div>
+
+  <div>
+    <div class="panel">
+      <h2>Изображение</h2>
+      <label>Яркость <span class="val" id="v-brightness">0</span>
+        <input type="range" id="brightness" min="-100" max="100" step="1" value="0"></label>
+      <label>Контраст <span class="val" id="v-contrast">1.00</span>
+        <input type="range" id="contrast" min="0.2" max="3" step="0.05" value="1"></label>
+      <label>Насыщенность <span class="val" id="v-saturation">1.00</span>
+        <input type="range" id="saturation" min="0" max="3" step="0.05" value="1"></label>
+      <label>Качество JPEG <span class="val" id="v-jpegQuality">80</span>
+        <input type="range" id="jpegQuality" min="10" max="100" step="1" value="80"></label>
+    </div>
+
+    <div class="panel">
+      <h2>Кадрирование</h2>
+      <label>Сдвиг по X <span class="val" id="v-cropX">0.00</span>
+        <input type="range" id="cropX" min="0" max="0.5" step="0.01" value="0"></label>
+      <label>Сдвиг по Y <span class="val" id="v-cropY">0.00</span>
+        <input type="range" id="cropY" min="0" max="0.5" step="0.01" value="0"></label>
+      <label>Ширина <span class="val" id="v-cropW">1.00</span>
+        <input type="range" id="cropW" min="0.1" max="1" step="0.01" value="1"></label>
+      <label>Высота <span class="val" id="v-cropH">1.00</span>
+        <input type="range" id="cropH" min="0.1" max="1" step="0.01" value="1"></label>
+    </div>
+
+    <div class="panel">
+      <h2>Диагностика</h2>
+      <div class="check"><input type="checkbox" id="showSeams">
+        <label for="showSeams" style="margin:0">Подсветить зону перекрытия</label></div>
+      <div class="check"><input type="checkbox" id="showCoverage">
+        <label for="showCoverage" style="margin:0">Карта покрытия камер</label></div>
+      <button id="reset">Сбросить настройки</button>
+    </div>
+
+    <div class="panel">
+      <h2>Состояние</h2>
+      <table>
+        <tr><td class="name">Кадров собрано</td><td id="s-frames">—</td></tr>
+        <tr><td class="name">Частота, кадр/с</td><td id="s-fps">—</td></tr>
+        <tr><td class="name">Склейка, мс</td><td id="s-stitch">—</td></tr>
+        <tr><td class="name">Постобработка, мс</td><td id="s-process">—</td></tr>
+        <tr><td class="name">Кодирование, мс</td><td id="s-encode">—</td></tr>
+        <tr><td class="name">Рассинхрон, мс</td><td id="s-spread">—</td></tr>
+        <tr><td class="name">Наборов сведено</td><td id="s-matched">—</td></tr>
+        <tr><td class="name">Кадров отброшено</td><td id="s-dropped">—</td></tr>
+        <tr><td class="name">Покрытие</td><td id="s-coverage">—</td></tr>
+        <tr><td class="name">Перекрытие</td><td id="s-overlap">—</td></tr>
+        <tr><td class="name">Холст</td><td id="s-canvas">—</td></tr>
+      </table>
+    </div>
+  </div>
+</main>
+
+<script>
+"use strict";
+
+// Поток MJPEG браузер тянет сам: достаточно поставить его в src картинки.
+document.getElementById("stream").src = "/stream.mjpg?t=" + Date.now();
+
+const SLIDERS = ["brightness", "contrast", "saturation", "jpegQuality",
+                 "cropX", "cropY", "cropW", "cropH"];
+const CHECKS = ["showSeams", "showCoverage"];
+
+function format(id, value) {
+  if (id === "brightness" || id === "jpegQuality") return String(Math.round(value));
+  return Number(value).toFixed(2);
+}
+
+function showValues() {
+  for (const id of SLIDERS) {
+    const el = document.getElementById(id);
+    document.getElementById("v-" + id).textContent = format(id, el.value);
+  }
+}
+
+let pending = null;
+
+// Настройки уходят пачкой с небольшой задержкой: иначе перетаскивание ползунка
+// порождает десятки запросов в секунду.
+function pushSettings(extra) {
+  const params = new URLSearchParams();
+  for (const id of SLIDERS) params.set(id, document.getElementById(id).value);
+  for (const id of CHECKS) params.set(id, document.getElementById(id).checked ? "1" : "0");
+  if (extra) params.set(extra, "1");
+
+  clearTimeout(pending);
+  pending = setTimeout(() => {
+    fetch("/api/settings?" + params.toString()).catch(() => {});
+  }, 60);
+}
+
+for (const id of SLIDERS) {
+  document.getElementById(id).addEventListener("input", () => {
+    showValues();
+    pushSettings();
+  });
+}
+for (const id of CHECKS) {
+  document.getElementById(id).addEventListener("change", () => pushSettings());
+}
+
+document.getElementById("reset").addEventListener("click", async () => {
+  try {
+    const s = await (await fetch("/api/settings?reset=1")).json();
+    for (const id of SLIDERS) {
+      if (id in s) document.getElementById(id).value = s[id];
+    }
+    for (const id of CHECKS) document.getElementById(id).checked = Boolean(s[id]);
+    showValues();
+  } catch (e) {
+    // Сервер ответит при следующем опросе состояния.
+  }
+});
+
+function setText(id, text) { document.getElementById(id).textContent = text; }
+
+async function poll() {
+  try {
+    const s = await (await fetch("/api/status")).json();
+
+    setText("s-frames", s.framesStitched);
+    setText("s-fps", s.outputFps.toFixed(1));
+    setText("s-stitch", s.stitchMs.toFixed(1));
+    setText("s-process", s.processMs.toFixed(1));
+    setText("s-encode", s.encodeMs.toFixed(1));
+    setText("s-spread", (s.sync.lastSpreadUs / 1000).toFixed(1));
+    setText("s-matched", s.sync.matched);
+    setText("s-dropped", s.framesDropped);
+    setText("s-coverage", Math.round(s.coverage * 100) + "%");
+    setText("s-overlap", Math.round(s.overlap * 100) + "%");
+    setText("s-canvas", s.canvasWidth + "x" + s.canvasHeight);
+
+    const names = s.sources.map(c => c.id).join(" + ");
+    document.getElementById("headline").innerHTML =
+      '<span class="dot">&#9679;</span> ' + names + " — " + s.outputFps.toFixed(1) + " кадр/с";
+  } catch (e) {
+    document.getElementById("headline").textContent = "нет связи с сервером";
+  }
+}
+
+// Начальные значения подтягиваем с сервера, чтобы ползунки не расходились
+// с настройками, заданными в конфигурации.
+(async () => {
+  try {
+    const s = await (await fetch("/api/settings")).json();
+    for (const id of SLIDERS) if (id in s) document.getElementById(id).value = s[id];
+    for (const id of CHECKS) document.getElementById(id).checked = Boolean(s[id]);
+  } catch (e) {
+    // Останутся значения по умолчанию из разметки.
+  }
+  showValues();
+  poll();
+  setInterval(poll, 1000);
+})();
+</script>
+</body>
+</html>

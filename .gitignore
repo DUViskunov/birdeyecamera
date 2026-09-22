@@ -1,0 +1,13 @@
+build/
+build-clean/
+data/
+.venv/
+.idea/
+*.exe
+*.obj
+*.o
+*.a
+config/system.json
+config/intrinsics.json
+docs/*.png
+docs/*.jpg
